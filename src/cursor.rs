@@ -121,8 +121,12 @@ impl<W: Write> DetectCursorPos for W {
 
         // The answer will look like `ESC [ Cy ; Cx R`.
 
+        println!("read chars '{:?}'", str::from_utf8(read_chars.as_slice()));
+
         read_chars.pop(); // remove trailing R.
         let read_str = String::from_utf8(read_chars).unwrap();
+        println!("read str '{}'", read_str);
+
         let beg = read_str.rfind('[').unwrap();
         let coords: String = read_str.chars().skip(beg + 1).collect();
         let mut nums = coords.split(';');
