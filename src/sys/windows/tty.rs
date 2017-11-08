@@ -11,6 +11,7 @@ use ::sys::winapi::um::winbase::{STD_INPUT_HANDLE, STD_OUTPUT_HANDLE};
 use ::sys::winapi::um::wincon::{ENABLE_PROCESSED_OUTPUT, ENABLE_WRAP_AT_EOL_OUTPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, ENABLE_ECHO_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, PeekConsoleInputW};
 use ::sys::winapi::um::winnt::HANDLE;
 
+
 pub struct PreInitState {
     do_cleanup: bool,
     current_out_mode: DWORD,
@@ -20,6 +21,7 @@ pub struct PreInitState {
 impl Drop for PreInitState {
     fn drop(&mut self) {
         if self.do_cleanup {
+            println!("cleaning up");
             set_console_mode(StdStream::OUT, self.current_out_mode).ok();
             set_console_mode(StdStream::IN, self.current_in_mode).ok();
         }
@@ -28,10 +30,10 @@ impl Drop for PreInitState {
 
 pub fn init() -> PreInitState {
     do_init().unwrap_or(PreInitState {
-        do_cleanup: false,
-        current_out_mode: 0,
-        current_in_mode: 0,
-    })
+                            do_cleanup: false,
+                            current_out_mode: 0,
+                            current_in_mode: 0,
+                        })
 }
 
 fn do_init() -> Result<PreInitState, io::Error> {
@@ -65,10 +67,10 @@ fn do_init() -> Result<PreInitState, io::Error> {
     println!("cim {:x}, com {:x}", current_in_mode, current_out_mode);
 
     Ok(PreInitState {
-        do_cleanup: true,
-        current_out_mode,
-        current_in_mode,
-    })
+           do_cleanup: true,
+           current_out_mode,
+           current_in_mode,
+       })
 }
 
 #[derive(Copy, Clone)]
@@ -129,19 +131,8 @@ pub fn set_raw_input_mode(enable: bool) -> bool {
 }
 
 // TODO: provide an implementation of this, perhaps just delegating to the atty crate?
-pub fn is_tty(stream: &AsRawHandle) -> bool {
-    let stream = stream.as_raw_handle() as *mut c_void;
-
-    if stream == INVALID_HANDLE_VALUE {
-        return false;
-    };
-
-    let mut read: DWORD = 0;
-    if unsafe { PeekConsoleInputW(stream as *mut c_void, null_mut(), 0, &mut read) == 0 } {
-        return false;
-    };
-
-    return true;
+pub fn is_tty(_: &AsRawHandle) -> bool {
+    true
 }
 
 /// Get the TTY device.
@@ -149,6 +140,9 @@ pub fn is_tty(stream: &AsRawHandle) -> bool {
 /// This allows for getting stdio representing _only_ the TTY, and not other streams.
 #[cfg(target_os = "windows")]
 pub fn get_tty() -> io::Result<Box<io::Read>> {
+
+
+
     // TODO:
     // should this be CreateFile CONOUT$ ??
 
