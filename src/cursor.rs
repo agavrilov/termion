@@ -2,6 +2,7 @@
 
 use std::fmt;
 use std::io::{self, Write, Error, ErrorKind, Read};
+use std::str;
 use async::async_stdin_until;
 use std::time::{SystemTime, Duration};
 use raw::CONTROL_SEQUENCE_TIMEOUT;
