@@ -9,6 +9,10 @@ license = "MIT"
 keywords = ["tty", "color", "terminal", "password", "tui"]
 exclude = ["target", "CHANGELOG.md", "image.png", "Cargo.lock"]
 
+[dependencies]
+failure = { git = "https://github.com/withoutboats/failure" }
+failure_derive = { git = "https://github.com/withoutboats/failure_derive" }
+
 [target.'cfg(all(not(target_os = "redox"), not(windows)))'.dependencies]
 libc = "0.2.8"
 

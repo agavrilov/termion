@@ -106,7 +106,7 @@ impl<W: Write> IntoRawMode for W {
         use sys::attr::{get_terminal_attr, raw_terminal_attr, set_terminal_attr};
 
         let mut ios = get_terminal_attr()?;
-        let prev_ios = ios;
+        let prev_ios = ios.clone();
 
         raw_terminal_attr(&mut ios);
 

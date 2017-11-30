@@ -29,6 +29,10 @@ impl Drop for PreInitState {
 }
 
 pub fn init() -> PreInitState {
+    // there are many other console hosts on windows that might actually do something
+    // rational with the output escape codes, so if the setup fails, carry on rather
+    // than reporting an error. The assumption is that the cleanup in the drop trait
+    // will always be able to set the flags that are currently set.
     do_init().unwrap_or(PreInitState {
                             do_cleanup: false,
                             current_out_mode: 0,
@@ -37,10 +41,6 @@ pub fn init() -> PreInitState {
 }
 
 fn do_init() -> Result<PreInitState, io::Error> {
-    // there are many other console hosts on windows that might actually do something
-    // rational with the output escape codes, so if the setup fails, carry on rather
-    // than reporting an error. The assumption is that the cleanup in the drop trait
-    // will always be able to set the flags that are currently set.
     let current_out_mode = get_console_mode(StdStream::OUT)?;
     let current_in_mode = get_console_mode(StdStream::IN)?;
 
@@ -63,8 +63,6 @@ fn do_init() -> Result<PreInitState, io::Error> {
 
     // ignore failure here and hope we are in a capable third party console
     set_console_mode(StdStream::IN, new_in_mode).ok();
-
-    println!("cim {:x}, com {:x}", current_in_mode, current_out_mode);
 
     Ok(PreInitState {
            do_cleanup: true,
@@ -145,12 +143,6 @@ pub fn get_tty() -> io::Result<Box<io::Read>> {
 
     // TODO:
     // should this be CreateFile CONOUT$ ??
-
     // alternatively, return stdin if is_tty(stdin) else Err() ??
-
-    // use std::env;
-    // let tty = try!(env::var("TTY").map_err(|x| io::Error::new(io::ErrorKind::NotFound, x)));
-    // fs::OpenOptions::new().read(true).write(true).open(tty)
-
     Ok(Box::new(io::stdin()))
 }
