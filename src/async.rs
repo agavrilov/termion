@@ -12,10 +12,15 @@ pub fn async_stdin_until(delimiter: u8) -> AsyncReader {
     let (send, recv) = mpsc::channel();
 
     thread::spawn(move || for i in get_tty().unwrap().bytes() {
-        let end_of_stream = &i == &delimiter;
-        let send_error = send.send(Ok(i)).is_err();
+        match i {
+            Ok(byte) => {
+                let end_of_stream = &byte == &delimiter;
+                let send_error = send.send(Ok(byte)).is_err();
 
-        if end_of_stream || send_error { return; }
+                if end_of_stream || send_error { return; }
+            },
+            Err(_) => { return; }
+        }
     });
 
     AsyncReader { recv: recv }
@@ -35,10 +40,6 @@ pub fn async_stdin() -> AsyncReader {
     let (send, recv) = mpsc::channel();
 
     thread::spawn(move || for i in get_tty().unwrap().bytes() {
-
-        #[cfg(target_os = "windows")]
-        let i = Ok(i);
-
         if send.send(i).is_err() {
             return;
         }
