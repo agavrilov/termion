@@ -54,9 +54,14 @@ mod test {
             sys::attr::get_terminal_attr().unwrap();
             #[cfg(windows)]
             {
-                // FIXME: Need an equivalent test for Windows here. Is this even equivalent?
-                //get_console_mode(StdStream::IN).unwrap();
-                //get_console_mode(StdStream::OUT).unwrap();
+                // FIXME: This fails in MSYS2/Cygwin.
+                /*
+                use sys::tty::*;
+
+                // XXX: Is this even equivalent?
+                get_console_mode(StdStream::IN).unwrap();
+                get_console_mode(StdStream::OUT).unwrap();
+                */
             }
         }
     }
@@ -73,7 +78,10 @@ mod test {
 
     #[test]
     fn test_size() {
-        sys::size::terminal_size().unwrap();
         // FIXME: This fails in MSYS2/Cygwin.
+        #[cfg(not(windows))]
+        {
+            sys::size::terminal_size().unwrap();
+        }
     }
 }
