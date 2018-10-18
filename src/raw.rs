@@ -39,6 +39,10 @@ pub struct RawTerminal<W: Write> {
 
 #[cfg(not(windows))]
 use sys::Termios;
+
+#[cfg(not(windows))]
+use sys::attr::{get_terminal_attr, raw_terminal_attr, set_terminal_attr};
+
 /// A terminal restorer, which keeps the previous state of the terminal, and restores it, when
 /// dropped.
 ///
