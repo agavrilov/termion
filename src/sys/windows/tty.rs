@@ -14,6 +14,7 @@ use sys::winapi::um::wincon::{
 };
 use sys::winapi::um::winnt::HANDLE;
 
+#[derive(Debug)]
 pub struct PreInitState {
     do_cleanup: bool,
     current_out_mode: DWORD,
@@ -22,6 +23,7 @@ pub struct PreInitState {
 
 impl Drop for PreInitState {
     fn drop(&mut self) {
+        trace!("restoring terminal state. PreInitState={:?}", self);
         if self.do_cleanup {
             if let Err(err) = set_console_mode(StdStream::OUT, self.current_out_mode) {
                 error!(
