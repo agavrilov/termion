@@ -23,8 +23,18 @@ pub struct PreInitState {
 impl Drop for PreInitState {
     fn drop(&mut self) {
         if self.do_cleanup {
-            set_console_mode(StdStream::OUT, self.current_out_mode).ok();
-            set_console_mode(StdStream::IN, self.current_in_mode).ok();
+            if let Err(err) = set_console_mode(StdStream::OUT, self.current_out_mode) {
+                error!(
+                    "Error restoring mode for console output stream. Err={:?}",
+                    err
+                )
+            }
+            if let Err(err) = set_console_mode(StdStream::IN, self.current_in_mode) {
+                error!(
+                    "Error restoring mode for console input stream. Err={:?}",
+                    err
+                )
+            }
         }
     }
 }
