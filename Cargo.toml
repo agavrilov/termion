@@ -19,6 +19,6 @@ libc = "0.2.8"
 redox_syscall = "0.1"
 redox_termios = "0.1"
 
-[target.'cfg(windows)'.dependencies.winapi]
-version = "0.3.4"
-features = ["consoleapi", "handleapi", "minwindef", "processenv", "winbase", "wincon"]
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3.6", features = ["consoleapi", "handleapi", "minwindef", "processenv", "winbase", "wincon"]}
+log = "0.4.6"

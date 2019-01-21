@@ -1,15 +1,18 @@
 // it'll be an api-breaking change to do it later
 use std::io;
 use std::os::windows::prelude::*;
-use ::sys::winapi::_core::ptr::null_mut;
-use ::sys::winapi::ctypes::c_void;
-use ::sys::winapi::shared::minwindef::{FALSE, DWORD};
-use ::sys::winapi::um::consoleapi::{GetConsoleMode, SetConsoleMode};
-use ::sys::winapi::um::handleapi::INVALID_HANDLE_VALUE;
-use ::sys::winapi::um::processenv::GetStdHandle;
-use ::sys::winapi::um::winbase::{STD_INPUT_HANDLE, STD_OUTPUT_HANDLE};
-use ::sys::winapi::um::wincon::{ENABLE_PROCESSED_OUTPUT, ENABLE_WRAP_AT_EOL_OUTPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT, ENABLE_ECHO_INPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, PeekConsoleInputW};
-use ::sys::winapi::um::winnt::HANDLE;
+use sys::winapi::_core::ptr::null_mut;
+use sys::winapi::ctypes::c_void;
+use sys::winapi::shared::minwindef::{DWORD, FALSE};
+use sys::winapi::um::consoleapi::{GetConsoleMode, SetConsoleMode};
+use sys::winapi::um::handleapi::INVALID_HANDLE_VALUE;
+use sys::winapi::um::processenv::GetStdHandle;
+use sys::winapi::um::winbase::{STD_INPUT_HANDLE, STD_OUTPUT_HANDLE};
+use sys::winapi::um::wincon::{
+    PeekConsoleInputW, ENABLE_ECHO_INPUT, ENABLE_LINE_INPUT, ENABLE_PROCESSED_INPUT,
+    ENABLE_PROCESSED_OUTPUT, ENABLE_VIRTUAL_TERMINAL_PROCESSING, ENABLE_WRAP_AT_EOL_OUTPUT,
+};
+use sys::winapi::um::winnt::HANDLE;
 
 pub struct PreInitState {
     do_cleanup: bool,
@@ -27,10 +30,13 @@ impl Drop for PreInitState {
 }
 
 pub fn init() -> PreInitState {
-    do_init().unwrap_or(PreInitState {
-        do_cleanup: false,
-        current_out_mode: 0,
-        current_in_mode: 0,
+    do_init().unwrap_or_else(|err| {
+        error!("init error={:?}", err);
+        PreInitState {
+            do_cleanup: false,
+            current_out_mode: 0,
+            current_in_mode: 0,
+        }
     })
 }
 
@@ -42,8 +48,10 @@ fn do_init() -> Result<PreInitState, io::Error> {
     let current_out_mode = get_console_mode(StdStream::OUT)?;
     let current_in_mode = get_console_mode(StdStream::IN)?;
 
-    let new_out_mode = current_out_mode | ENABLE_PROCESSED_OUTPUT | ENABLE_WRAP_AT_EOL_OUTPUT |
-                       ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+    let new_out_mode = current_out_mode
+        | ENABLE_PROCESSED_OUTPUT
+        | ENABLE_WRAP_AT_EOL_OUTPUT
+        | ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 
     // ignore failure here and hope we are in a capable third party console
     set_console_mode(StdStream::OUT, new_out_mode).ok();
@@ -62,7 +70,10 @@ fn do_init() -> Result<PreInitState, io::Error> {
     // ignore failure here and hope we are in a capable third party console
     set_console_mode(StdStream::IN, new_in_mode).ok();
 
-    println!("cim {:x}, com {:x}", current_in_mode, current_out_mode);
+    debug!(
+        "current_in_mode={:x}, current_out_mode={:x}",
+        current_in_mode, current_out_mode
+    );
 
     Ok(PreInitState {
         do_cleanup: true,
@@ -118,13 +129,13 @@ pub fn get_console_mode(strm: StdStream) -> io::Result<DWORD> {
 pub fn set_raw_input_mode(enable: bool) -> bool {
     get_console_mode(StdStream::IN)
         .map(|current_mode| {
-                 let new_mode = if enable {
-                     current_mode & !ENABLE_LINE_INPUT
-                 } else {
-                     current_mode | ENABLE_LINE_INPUT
-                 };
-                 set_console_mode(StdStream::IN, new_mode)
-             })
+            let new_mode = if enable {
+                current_mode & !ENABLE_LINE_INPUT
+            } else {
+                current_mode | ENABLE_LINE_INPUT
+            };
+            set_console_mode(StdStream::IN, new_mode)
+        })
         .is_ok()
 }
 

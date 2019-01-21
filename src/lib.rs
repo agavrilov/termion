@@ -13,23 +13,27 @@
 
 extern crate numtoa;
 
+#[cfg(windows)]
+#[macro_use]
+extern crate log;
+
 #[cfg(target_os = "redox")]
-#[path="sys/redox/mod.rs"]
+#[path = "sys/redox/mod.rs"]
 mod sys;
 
 #[cfg(all(not(target_os = "redox"), not(windows)))]
-#[path="sys/unix/mod.rs"]
+#[path = "sys/unix/mod.rs"]
 mod sys;
 
 #[cfg(windows)]
-#[path="sys/windows/mod.rs"]
+#[path = "sys/windows/mod.rs"]
 mod sys;
 
 pub use sys::size::terminal_size;
-pub use sys::tty::{is_tty, get_tty, init};
+pub use sys::tty::{get_tty, init, is_tty};
 
 mod async;
-pub use async::{AsyncReader, async_stdin};
+pub use async::{async_stdin, AsyncReader};
 
 #[macro_use]
 mod macros;
