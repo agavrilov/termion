@@ -7,7 +7,7 @@ use event::{self, Event, Key};
 use raw::IntoRawMode;
 
 #[cfg(windows)]
-use ::sys::winapi::shared::minwindef::DWORD;
+use sys::winapi::shared::minwindef::DWORD;
 
 /// An iterator over input keys.
 pub struct Keys<R> {
@@ -30,15 +30,17 @@ impl<R: Read> Iterator for Keys<R> {
 }
 
 /// An iterator over input events.
-pub struct Events<R>  {
-    inner: EventsAndRaw<R>
+pub struct Events<R> {
+    inner: EventsAndRaw<R>,
 }
 
 impl<R: Read> Iterator for Events<R> {
     type Item = Result<Event, io::Error>;
 
     fn next(&mut self) -> Option<Result<Event, io::Error>> {
-        self.inner.next().map(|tuple| tuple.map(|(event, _raw)| event))
+        self.inner
+            .next()
+            .map(|tuple| tuple.map(|(event, _raw)| event))
     }
 }
 
@@ -67,12 +69,10 @@ impl<R: Read> Iterator for EventsAndRaw<R> {
         let mut buf = [0u8; 2];
         let res = match source.read(&mut buf) {
             Ok(0) => return None,
-            Ok(1) => {
-                match buf[0] {
-                    b'\x1B' => Ok((Event::Key(Key::Esc), vec![b'\x1B'])),
-                    c => parse_event(c, &mut source.bytes()),
-                }
-            }
+            Ok(1) => match buf[0] {
+                b'\x1B' => Ok((Event::Key(Key::Esc), vec![b'\x1B'])),
+                c => parse_event(c, &mut source.bytes()),
+            },
             Ok(2) => {
                 let option_iter = &mut Some(buf[1]).into_iter();
                 let result = {
@@ -92,26 +92,34 @@ impl<R: Read> Iterator for EventsAndRaw<R> {
 }
 
 fn parse_event<I>(item: u8, iter: &mut I) -> Result<(Event, Vec<u8>), io::Error>
-    where I: Iterator<Item = Result<u8, io::Error>>
+where
+    I: Iterator<Item = Result<u8, io::Error>>,
 {
     let mut buf = vec![item];
     let result = {
-        let mut iter = iter.inspect(|byte| if let &Ok(byte) = byte {
-                                        buf.push(byte);
-                                    });
+        let mut iter = iter.inspect(|byte| {
+            if let &Ok(byte) = byte {
+                buf.push(byte);
+            }
+        });
         event::parse_event(item, &mut iter)
     };
-    result.or(Ok(Event::Unsupported(buf.clone()))).map(|e| (e, buf))
+    result
+        .or(Ok(Event::Unsupported(buf.clone())))
+        .map(|e| (e, buf))
 }
-
 
 /// Extension to `Read` trait.
 pub trait TermRead {
     /// An iterator over input events.
-    fn events(self) -> Events<Self> where Self: Sized;
+    fn events(self) -> Events<Self>
+    where
+        Self: Sized;
 
     /// An iterator over key inputs.
-    fn keys(self) -> Keys<Self> where Self: Sized;
+    fn keys(self) -> Keys<Self>
+    where
+        Self: Sized;
 
     /// Read a line.
     ///
@@ -129,15 +137,16 @@ pub trait TermRead {
     }
 }
 
-
 impl<R: Read + TermReadEventsAndRaw> TermRead for R {
     fn events(self) -> Events<Self> {
         Events {
-            inner: self.events_and_raw()
+            inner: self.events_and_raw(),
         }
     }
     fn keys(self) -> Keys<Self> {
-        Keys { iter: self.events() }
+        Keys {
+            iter: self.events(),
+        }
     }
 
     fn read_line(&mut self) -> io::Result<Option<String>> {
@@ -155,8 +164,8 @@ impl<R: Read + TermReadEventsAndRaw> TermRead for R {
             }
         }
 
-        let string = try!(String::from_utf8(buf)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)));
+        let string =
+            try!(String::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e)));
         Ok(Some(string))
     }
 }
@@ -164,7 +173,9 @@ impl<R: Read + TermReadEventsAndRaw> TermRead for R {
 /// Extension to `TermRead` trait. A separate trait in order to maintain backwards compatibility.
 pub trait TermReadEventsAndRaw {
     /// An iterator over input events and the bytes that define them.
-    fn events_and_raw(self) -> EventsAndRaw<Self> where Self: Sized;
+    fn events_and_raw(self) -> EventsAndRaw<Self>
+    where
+        Self: Sized;
 }
 
 impl<R: Read> TermReadEventsAndRaw for R {
@@ -205,16 +216,18 @@ impl<W: Write> From<W> for MouseTerminal<W> {
 
     #[cfg(windows)]
     fn from(mut from: W) -> MouseTerminal<W> {
-        use ::sys::tty::*;
-        use ::sys::winapi::um::wincon::{ENABLE_MOUSE_INPUT, ENABLE_QUICK_EDIT_MODE, ENABLE_ECHO_INPUT};
-        const ENABLE_VIRTUAL_TERMINAL_INPUT : DWORD = 0x0200;
+        use sys::tty::*;
+        use sys::winapi::um::wincon::{
+            ENABLE_ECHO_INPUT, ENABLE_MOUSE_INPUT, ENABLE_QUICK_EDIT_MODE,
+        };
+        const ENABLE_VIRTUAL_TERMINAL_INPUT: DWORD = 0x0200;
 
         let opt_state = get_console_mode(StdStream::IN).ok();
         if let Some(mode) = opt_state {
             let new_in_mode = mode | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_MOUSE_INPUT;
             let new_in_mode = new_in_mode & !ENABLE_QUICK_EDIT_MODE;
             let new_in_mode = new_in_mode & !ENABLE_ECHO_INPUT;
-            println!("new mode: {:b}", new_in_mode);
+            debug!("new mode: {:b}", new_in_mode);
             set_console_mode(StdStream::IN, new_in_mode).ok();
         }
 
@@ -237,7 +250,7 @@ impl<W: Write> Drop for MouseTerminal<W> {
 
     #[cfg(windows)]
     fn drop(&mut self) {
-        use ::sys::tty::StdStream;
+        use sys::tty::StdStream;
 
         // either way emit the mouse-enter sequence in case we are in
         // a third-party console host that supports it.
@@ -276,8 +289,8 @@ impl<W: Write> Write for MouseTerminal<W> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use event::{Event, Key, MouseButton, MouseEvent};
     use std::io;
-    use event::{Key, Event, MouseEvent, MouseButton};
 
     #[test]
     fn test_keys() {
@@ -293,27 +306,38 @@ mod test {
 
     #[test]
     fn test_events() {
-        let mut i =
-            b"\x1B[\x00bc\x7F\x1B[D\
+        let mut i = b"\x1B[\x00bc\x7F\x1B[D\
                     \x1B[M\x00\x22\x24\x1B[<0;2;4;M\x1B[32;2;4M\x1B[<0;2;4;m\x1B[35;2;4Mb"
-                    .events();
+            .events();
 
-        assert_eq!(i.next().unwrap().unwrap(),
-                   Event::Unsupported(vec![0x1B, b'[', 0x00]));
+        assert_eq!(
+            i.next().unwrap().unwrap(),
+            Event::Unsupported(vec![0x1B, b'[', 0x00])
+        );
         assert_eq!(i.next().unwrap().unwrap(), Event::Key(Key::Char('b')));
         assert_eq!(i.next().unwrap().unwrap(), Event::Key(Key::Char('c')));
         assert_eq!(i.next().unwrap().unwrap(), Event::Key(Key::Backspace));
         assert_eq!(i.next().unwrap().unwrap(), Event::Key(Key::Left));
-        assert_eq!(i.next().unwrap().unwrap(),
-                   Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, 2, 4)));
-        assert_eq!(i.next().unwrap().unwrap(),
-                   Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4)));
-        assert_eq!(i.next().unwrap().unwrap(),
-                   Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4)));
-        assert_eq!(i.next().unwrap().unwrap(),
-                   Event::Mouse(MouseEvent::Release(2, 4)));
-        assert_eq!(i.next().unwrap().unwrap(),
-                   Event::Mouse(MouseEvent::Release(2, 4)));
+        assert_eq!(
+            i.next().unwrap().unwrap(),
+            Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, 2, 4))
+        );
+        assert_eq!(
+            i.next().unwrap().unwrap(),
+            Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4))
+        );
+        assert_eq!(
+            i.next().unwrap().unwrap(),
+            Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4))
+        );
+        assert_eq!(
+            i.next().unwrap().unwrap(),
+            Event::Mouse(MouseEvent::Release(2, 4))
+        );
+        assert_eq!(
+            i.next().unwrap().unwrap(),
+            Event::Mouse(MouseEvent::Release(2, 4))
+        );
         assert_eq!(i.next().unwrap().unwrap(), Event::Key(Key::Char('b')));
         assert!(i.next().is_none());
     }
@@ -324,25 +348,36 @@ mod test {
                     \x1B[M\x00\x22\x24\x1B[<0;2;4;M\x1B[32;2;4M\x1B[<0;2;4;m\x1B[35;2;4Mb";
         let mut output = Vec::<u8>::new();
         {
-            let mut i = input.events_and_raw().map(|res| res.unwrap())
-                .inspect(|&(_, ref raw)| { output.extend(raw); }).map(|(event, _)| event);
+            let mut i = input
+                .events_and_raw()
+                .map(|res| res.unwrap())
+                .inspect(|&(_, ref raw)| {
+                    output.extend(raw);
+                })
+                .map(|(event, _)| event);
 
-            assert_eq!(i.next().unwrap(),
-            Event::Unsupported(vec![0x1B, b'[', 0x00]));
+            assert_eq!(
+                i.next().unwrap(),
+                Event::Unsupported(vec![0x1B, b'[', 0x00])
+            );
             assert_eq!(i.next().unwrap(), Event::Key(Key::Char('b')));
             assert_eq!(i.next().unwrap(), Event::Key(Key::Char('c')));
             assert_eq!(i.next().unwrap(), Event::Key(Key::Backspace));
             assert_eq!(i.next().unwrap(), Event::Key(Key::Left));
-            assert_eq!(i.next().unwrap(),
-            Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, 2, 4)));
-            assert_eq!(i.next().unwrap(),
-            Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4)));
-            assert_eq!(i.next().unwrap(),
-            Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4)));
-            assert_eq!(i.next().unwrap(),
-            Event::Mouse(MouseEvent::Release(2, 4)));
-            assert_eq!(i.next().unwrap(),
-            Event::Mouse(MouseEvent::Release(2, 4)));
+            assert_eq!(
+                i.next().unwrap(),
+                Event::Mouse(MouseEvent::Press(MouseButton::WheelUp, 2, 4))
+            );
+            assert_eq!(
+                i.next().unwrap(),
+                Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4))
+            );
+            assert_eq!(
+                i.next().unwrap(),
+                Event::Mouse(MouseEvent::Press(MouseButton::Left, 2, 4))
+            );
+            assert_eq!(i.next().unwrap(), Event::Mouse(MouseEvent::Release(2, 4)));
+            assert_eq!(i.next().unwrap(), Event::Mouse(MouseEvent::Release(2, 4)));
             assert_eq!(i.next().unwrap(), Event::Key(Key::Char('b')));
             assert!(i.next().is_none());
         }
@@ -359,7 +394,7 @@ mod test {
 
         let mut st = b"\x1B[11~\x1B[12~\x1B[13~\x1B[14~\x1B[15~\
         \x1B[17~\x1B[18~\x1B[19~\x1B[20~\x1B[21~\x1B[23~\x1B[24~"
-                .keys();
+            .keys();
         for i in 1..13 {
             assert_eq!(st.next().unwrap().unwrap(), Key::F(i));
         }
@@ -414,18 +449,26 @@ mod test {
 
     #[test]
     fn test_backspace() {
-        line_match("this is the\x7f first\x7f\x7f test",
-                   Some("this is th fir test"));
-        line_match("this is the seco\x7fnd test\x7f",
-                   Some("this is the secnd tes"));
+        line_match(
+            "this is the\x7f first\x7f\x7f test",
+            Some("this is th fir test"),
+        );
+        line_match(
+            "this is the seco\x7fnd test\x7f",
+            Some("this is the secnd tes"),
+        );
     }
 
     #[test]
     fn test_end() {
-        line_match("abc\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ",
-                   Some("abc"));
-        line_match("hello\rhttps://www.youtube.com/watch?v=yPYZpwSpKmA",
-                   Some("hello"));
+        line_match(
+            "abc\nhttps://www.youtube.com/watch?v=dQw4w9WgXcQ",
+            Some("abc"),
+        );
+        line_match(
+            "hello\rhttps://www.youtube.com/watch?v=yPYZpwSpKmA",
+            Some("hello"),
+        );
     }
 
     #[test]
