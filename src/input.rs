@@ -252,8 +252,6 @@ impl<W: Write> Drop for MouseTerminal<W> {
     fn drop(&mut self) {
         use sys::tty::StdStream;
 
-        trace!("Drop MouseTerminal");
-
         // either way emit the mouse-enter sequence in case we are in
         // a third-party console host that supports it.
         self.term.write_all(EXIT_MOUSE_SEQUENCE.as_bytes()).unwrap();
