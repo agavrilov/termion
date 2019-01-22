@@ -19,9 +19,9 @@
 //! }
 //! ```
 
+use std::fmt;
 use std::io::{self, Write};
 use std::ops;
-use std::fmt;
 
 /// Switch to the main screen buffer of the terminal.
 pub struct ToMainScreen;
@@ -62,6 +62,10 @@ impl<W: Write> AlternateScreen<W> {
 
 impl<W: Write> Drop for AlternateScreen<W> {
     fn drop(&mut self) {
+        #[cfg(windows)]
+        {
+            trace!("Drop AlternateScreen");
+        }
         write!(self, "{}", ToMainScreen).expect("switch to main screen");
     }
 }
